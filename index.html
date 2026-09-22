@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Microgeneración Hidroeléctrica</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#071b2c,#0b4f6c,#12a8c7);color:#17202a;min-height:100vh}
+header{background:rgba(3,20,34,.92);color:white;padding:28px 20px;text-align:center;box-shadow:0 5px 20px rgba(0,0,0,.25)}
+header h1{font-size:32px;margin-bottom:8px} header p{color:#bdefff;font-size:16px}
+.container{max-width:1250px;margin:30px auto;padding:0 18px}
+.card{background:white;border-radius:20px;padding:25px;margin-bottom:25px;box-shadow:0 12px 35px rgba(0,0,0,.18)}
+.card h2{color:#075985;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+label{display:block;font-weight:bold;margin-bottom:7px;color:#334155}
+input{width:100%;padding:13px;border:2px solid #dbeafe;border-radius:10px;font-size:16px;outline:none}
+input:focus{border-color:#0891b2}
+button{margin-top:20px;width:100%;padding:15px;border:none;border-radius:12px;background:linear-gradient(90deg,#0369a1,#0891b2);color:white;font-size:18px;font-weight:bold;cursor:pointer}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px}
+.result{padding:20px;border-radius:16px;background:#eff6ff;border-left:6px solid #0284c7}
+.result strong{display:block;color:#475569;margin-bottom:8px}.result span{font-size:25px;font-weight:bold;color:#075985}
+.status{padding:18px;margin-top:20px;border-radius:14px;font-weight:bold}.good{background:#dcfce7;color:#166534}.warning{background:#fef3c7;color:#92400e}.bad{background:#fee2e2;color:#991b1b}
+.diagram{position:relative;height:300px;background:linear-gradient(#dff6ff 0 65%,#38bdf8 65%);border-radius:18px;overflow:hidden;margin-top:15px}
+.mountain{position:absolute;left:0;bottom:105px;width:330px;height:190px;background:#64748b;clip-path:polygon(0 100%,25% 48%,40% 68%,65% 15%,100% 100%)}
+.reservoir{position:absolute;left:15px;bottom:0;width:210px;height:100px;background:#0284c7;border-radius:50% 50% 0 0}
+.pipe{position:absolute;left:200px;top:115px;width:430px;height:25px;background:#475569;transform:rotate(-15deg);transform-origin:left center;border-radius:20px}
+.turbine{position:absolute;right:260px;bottom:70px;width:90px;height:90px;border-radius:50%;background:#f59e0b;border:8px solid #92400e;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold}
+.generator{position:absolute;right:90px;bottom:75px;width:130px;height:80px;border-radius:12px;background:#334155;color:white;display:flex;align-items:center;justify-content:center;font-weight:bold}
+.power-line{position:absolute;right:0;bottom:120px;width:100px;height:8px;background:#111827}
+.label-diagram{position:absolute;background:white;padding:6px 10px;border-radius:8px;font-weight:bold;font-size:13px;box-shadow:0 3px 8px rgba(0,0,0,.2)}
+.l1{left:30px;top:25px}.l2{left:320px;top:90px}.l3{right:240px;top:40px}.l4{right:70px;top:35px}
+canvas{width:100%;max-height:380px;margin-top:15px;border-radius:12px;background:#f8fafc}
+.info{background:#ecfeff;border-left:6px solid #0891b2;padding:18px;border-radius:12px;line-height:1.6}
+.formula{background:#0f172a;color:#7dd3fc;padding:18px;border-radius:12px;font-size:18px;margin:10px 0;text-align:center}
+footer{text-align:center;color:white;padding:30px;opacity:.9}
+@media(max-width:600px){header h1{font-size:24px}.diagram{height:250px}.pipe{width:280px}.turbine{right:150px}.generator{right:20px;width:110px}}
+</style>
+</head>
+<body>
+<header><h1>💧 Microgeneración Hidroeléctrica</h1><p>Simulador didáctico de una microcentral hidroeléctrica</p></header>
+<div class="container">
+<section class="card">
+<h2>⚙️ 1. Datos de entrada</h2>
+<div class="grid">
+<div><label>Caudal Q (m³/s)</label><input type="number" id="caudal" value="0.15" min="0" step="0.01"></div>
+<div><label>Altura bruta Hb (m)</label><input type="number" id="altura" value="25" min="0" step="0.1"></div>
+<div><label>Pérdidas hidráulicas (%)</label><input type="number" id="perdidas" value="10" min="0" max="90" step="1"></div>
+<div><label>Eficiencia global (%)</label><input type="number" id="eficiencia" value="75" min="0" max="100" step="1"></div>
+<div><label>Potencia de la carga (kW)</label><input type="number" id="carga" value="10" min="0" step="0.1"></div>
+<div><label>Horas de operación por día</label><input type="number" id="horas" value="8" min="0" max="24" step="0.5"></div>
+</div>
+<button onclick="calcular()">⚡ Calcular microcentral</button><div id="mensaje"></div>
+</section>
+
+<section class="card"><h2>🏞️ 2. Diagrama de la microcentral</h2>
+<div class="diagram"><div class="mountain"></div><div class="reservoir"></div><div class="pipe"></div>
+<div class="turbine">TURBINA</div><div class="generator">GENERADOR</div><div class="power-line"></div>
+<div class="label-diagram l1">💧 Embalse</div><div class="label-diagram l2">🔧 Tubería forzada</div>
+<div class="label-diagram l3">⚙️ Turbina</div><div class="label-diagram l4">⚡ Generador</div></div></section>
+
+<section class="card"><h2>📊 3. Resultados del cálculo</h2>
+<div class="results">
+<div class="result"><strong>Altura neta</strong><span id="alturaNeta">--</span></div>
+<div class="result"><strong>Potencia hidráulica</strong><span id="potHidraulica">--</span></div>
+<div class="result"><strong>Potencia eléctrica</strong><span id="potElectrica">--</span></div>
+<div class="result"><strong>Energía diaria</strong><span id="energiaDia">--</span></div>
+<div class="result"><strong>Energía mensual</strong><span id="energiaMes">--</span></div>
+<div class="result"><strong>Margen frente a carga</strong><span id="margen">--</span></div>
+</div></section>
+
+<section class="card"><h2>📈 4. Curva Caudal vs Potencia</h2><canvas id="graficaPotencia" width="900" height="380"></canvas></section>
+<section class="card"><h2>⚡ 5. Comparación con la carga</h2><div id="comparacion" class="info">Ingrese los datos y presione calcular.</div></section>
+<section class="card"><h2>💡 6. Recomendaciones</h2><div id="recomendaciones" class="info">Las recomendaciones aparecerán después del cálculo.</div></section>
+
+<section class="card"><h2>📚 7. ¿Qué pérdidas incluye la altura neta?</h2>
+<div class="info"><p>La <strong>altura neta (Hn)</strong> representa la energía disponible para la turbina después de descontar las pérdidas hidráulicas del sistema.</p>
+<div class="formula">Hn = Hb − hf</div>
+<p>Las pérdidas hidráulicas pueden incluir:</p><br><ul>
+<li>🔹 Pérdidas por fricción en la tubería.</li><li>🔹 Pérdidas en codos y curvas.</li><li>🔹 Pérdidas en válvulas.</li><li>🔹 Pérdidas en entradas y salidas.</li><li>🔹 Pérdidas en rejillas o filtros.</li><li>🔹 Otras pérdidas locales del sistema hidráulico.</li>
+</ul><br><p>En este simulador se representan mediante un porcentaje de la <strong>altura bruta</strong>.</p></div></section>
+
+<section class="card"><h2>🧮 8. Fundamento físico</h2>
+<div class="formula">Ph = ρ · g · Q · Hn</div><div class="formula">Pe = ρ · g · Q · Hn · η</div>
+<div class="info"><p><strong>ρ</strong> = densidad del agua ≈ 1000 kg/m³</p><p><strong>g</strong> = aceleración gravitacional ≈ 9,81 m/s²</p><p><strong>Q</strong> = caudal en m³/s</p><p><strong>Hn</strong> = altura neta en metros</p><p><strong>η</strong> = eficiencia global</p></div></section>
+</div>
+<footer>Microgeneración Hidroeléctrica · Aplicación didáctica para Ingeniería en Energía</footer>
+
+<script>
+function calcular(){
+const rho=1000,g=9.81;
+const Q=parseFloat(document.getElementById("caudal").value);
+const Hb=parseFloat(document.getElementById("altura").value);
+const perdida=parseFloat(document.getElementById("perdidas").value);
+const eficiencia=parseFloat(document.getElementById("eficiencia").value);
+const carga=parseFloat(document.getElementById("carga").value);
+const horas=parseFloat(document.getElementById("horas").value);
+const mensaje=document.getElementById("mensaje");
+if([Q,Hb,perdida,eficiencia,carga,horas].some(isNaN)){mensaje.innerHTML='<div class="status bad">⚠️ Complete todos los campos.</div>';return}
+if(Q<=0){mensaje.innerHTML='<div class="status bad">❌ El caudal debe ser mayor que 0.</div>';return}
+if(Hb<=0){mensaje.innerHTML='<div class="status bad">❌ La altura bruta debe ser mayor que 0.</div>';return}
+if(eficiencia<=0||eficiencia>100){mensaje.innerHTML='<div class="status bad">❌ La eficiencia debe estar entre 0 y 100%.</div>';return}
+if(perdida<0||perdida>=100){mensaje.innerHTML='<div class="status bad">❌ Las pérdidas deben estar entre 0 y 99%.</div>';return}
+if(horas<0||horas>24){mensaje.innerHTML='<div class="status bad">❌ Las horas deben estar entre 0 y 24.</div>';return}
+const hf=Hb*perdida/100,Hn=Hb-hf,Ph=rho*g*Q*Hn,Pe=Ph*(eficiencia/100);
+const energiaDia=Pe/1000*horas,energiaMes=energiaDia*30,potenciaKW=Pe/1000,margen=potenciaKW-carga;
+document.getElementById("alturaNeta").innerText=Hn.toFixed(2)+" m";
+document.getElementById("potHidraulica").innerText=(Ph/1000).toFixed(2)+" kW";
+document.getElementById("potElectrica").innerText=potenciaKW.toFixed(2)+" kW";
+document.getElementById("energiaDia").innerText=energiaDia.toFixed(2)+" kWh";
+document.getElementById("energiaMes").innerText=energiaMes.toFixed(2)+" kWh";
+document.getElementById("margen").innerText=margen.toFixed(2)+" kW";
+const comp=document.getElementById("comparacion");
+if(potenciaKW>=carga){comp.className="status good";comp.innerHTML="✅ <strong>La potencia disponible supera o iguala la carga.</strong><br><br>Potencia generada: "+potenciaKW.toFixed(2)+" kW<br>Carga: "+carga.toFixed(2)+" kW<br>Margen: "+margen.toFixed(2)+" kW"}
+else{comp.className="status warning";comp.innerHTML="⚠️ <strong>La potencia generada es inferior a la carga.</strong><br><br>Potencia generada: "+potenciaKW.toFixed(2)+" kW<br>Carga: "+carga.toFixed(2)+" kW<br>Déficit: "+Math.abs(margen).toFixed(2)+" kW"}
+let r="";
+if(eficiencia<60)r+="🔧 Se recomienda revisar la eficiencia de la turbina y del generador.<br><br>";
+if(perdida>20)r+="💧 Las pérdidas hidráulicas son elevadas. Conviene revisar diámetro, longitud y accesorios de la tubería.<br><br>";
+if(Hn<5)r+="📏 La altura neta es baja. Puede ser necesario estudiar otra configuración de turbina.<br><br>";
+if(potenciaKW<carga)r+="⚡ La potencia disponible no cubre la carga ingresada. Se puede estudiar aumentar el caudal, la altura neta o reducir la demanda.<br><br>";
+if(r==="")r="✅ Los parámetros ingresados presentan condiciones favorables para la simulación.<br><br>💡 Se recomienda analizar diferentes caudales y alturas para estudiar cómo cambia la potencia disponible.";
+document.getElementById("recomendaciones").innerHTML=r;
+dibujarGrafica(Q,Hb,perdida,eficiencia);
+}
+function dibujarGrafica(Qactual,Hb,perdida,eficiencia){
+const canvas=document.getElementById("graficaPotencia"),ctx=canvas.getContext("2d");
+ctx.clearRect(0,0,canvas.width,canvas.height);
+const rho=1000,g=9.81,Hn=Hb*(1-perdida/100),eta=eficiencia/100,maxQ=Math.max(Qactual*2,.5);
+let puntos=[];
+for(let i=0;i<=20;i++){let q=maxQ*i/20;puntos.push({q:q,p:rho*g*q*Hn*eta/1000})}
+const ml=70,mb=55,ancho=canvas.width-100,alto=canvas.height-90,maxP=puntos[puntos.length-1].p*1.1;
+ctx.beginPath();ctx.moveTo(ml,20);ctx.lineTo(ml,canvas.height-mb);ctx.lineTo(canvas.width-20,canvas.height-mb);ctx.stroke();
+ctx.beginPath();
+puntos.forEach((p,i)=>{const x=ml+(p.q/maxQ)*ancho,y=canvas.height-mb-(p.p/maxP)*alto;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});
+ctx.strokeStyle="#0284c7";ctx.lineWidth=4;ctx.stroke();
+const potenciaActual=rho*g*Qactual*Hn*eta/1000,xActual=ml+(Qactual/maxQ)*ancho,yActual=canvas.height-mb-(potenciaActual/maxP)*alto;
+ctx.beginPath();ctx.arc(xActual,yActual,7,0,Math.PI*2);ctx.fillStyle="#dc2626";ctx.fill();
+ctx.fillStyle="#17202a";ctx.font="16px Arial";ctx.fillText("Caudal Q (m³/s)",canvas.width/2-70,canvas.height-15);
+ctx.save();ctx.translate(18,canvas.height/2+50);ctx.rotate(-Math.PI/2);ctx.fillText("Potencia eléctrica (kW)",0,0);ctx.restore();
+ctx.fillText("Punto de operación",xActual-55,yActual-15);
+}
+calcular();
+</script>
+</body>
+</html>
