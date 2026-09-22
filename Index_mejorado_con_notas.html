@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Microgeneración Hidroeléctrica</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#071b2c,#0b4f6c,#12a8c7);color:#17202a;min-height:100vh}
+header{background:rgba(3,20,34,.92);color:white;padding:28px 20px;text-align:center;box-shadow:0 5px 20px rgba(0,0,0,.25)}
+header h1{font-size:32px;margin-bottom:8px} header p{color:#bdefff;font-size:16px}
+.container{max-width:1250px;margin:30px auto;padding:0 18px}
+.card{background:white;border-radius:20px;padding:25px;margin-bottom:25px;box-shadow:0 12px 35px rgba(0,0,0,.18)}
+.card h2{color:#075985;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+label{display:block;font-weight:bold;margin-bottom:7px;color:#334155}
+input{width:100%;padding:13px;border:2px solid #dbeafe;border-radius:10px;font-size:16px;outline:none}
+input:focus{border-color:#0891b2}
+button{margin-top:20px;width:100%;padding:15px;border:none;border-radius:12px;background:linear-gradient(90deg,#0369a1,#0891b2);color:white;font-size:18px;font-weight:bold;cursor:pointer}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px}
+.result{padding:20px;border-radius:16px;background:#eff6ff;border-left:6px solid #0284c7}
+.result strong{display:block;color:#475569;margin-bottom:8px}.result span{font-size:25px;font-weight:bold;color:#075985}
+.status{padding:18px;margin-top:20px;border-radius:14px;font-weight:bold}.good{background:#dcfce7;color:#166534}.warning{background:#fef3c7;color:#92400e}.bad{background:#fee2e2;color:#991b1b}
+.diagram{position:relative;height:300px;background:linear-gradient(#dff6ff 0 65%,#38bdf8 65%);border-radius:18px;overflow:hidden;margin-top:15px}
+.mountain{position:absolute;left:0;bottom:105px;width:330px;height:190px;background:#64748b;clip-path:polygon(0 100%,25% 48%,40% 68%,65% 15%,100% 100%)}
+.reservoir{position:absolute;left:15px;bottom:0;width:210px;height:100px;background:#0284c7;border-radius:50% 50% 0 0}
+.pipe{position:absolute;left:200px;top:115px;width:430px;height:25px;background:#475569;transform:rotate(-15deg);transform-origin:left center;border-radius:20px}
+.turbine{position:absolute;right:260px;bottom:70px;width:90px;height:90px;border-radius:50%;background:#f59e0b;border:8px solid #92400e;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold}
+.generator{position:absolute;right:90px;bottom:75px;width:130px;height:80px;border-radius:12px;background:#334155;color:white;display:flex;align-items:center;justify-content:center;font-weight:bold}
+.power-line{position:absolute;right:0;bottom:120px;width:100px;height:8px;background:#111827}
+.label-diagram{position:absolute;background:white;padding:6px 10px;border-radius:8px;font-weight:bold;font-size:13px;box-shadow:0 3px 8px rgba(0,0,0,.2)}
+.l1{left:30px;top:25px}.l2{left:320px;top:90px}.l3{right:240px;top:40px}.l4{right:70px;top:35px}
+canvas{width:100%;max-height:380px;margin-top:15px;border-radius:12px;background:#f8fafc}
+.info{background:#ecfeff;border-left:6px solid #0891b2;padding:18px;border-radius:12px;line-height:1.6}
+.formula{background:#0f172a;color:#7dd3fc;padding:18px;border-radius:12px;font-size:18px;margin:10px 0;text-align:center}
+footer{text-align:center;color:white;padding:30px;opacity:.9}
+@media(max-width:600px){header h1{font-size:24px}.diagram{height:250px}.pipe{width:280px}.turbine{right:150px}.generator{right:20px;width:110px}}
+
+/* --- Rediseño didáctico y gráfico --- */
+body{background:#f3f8fb;color:#17324a}
+header{background:linear-gradient(135deg,#06263b,#087ca8,#17bdd4);padding:38px 20px;position:relative;overflow:hidden}
+header h1{font-size:clamp(28px,5vw,44px);line-height:1.05} header p{font-size:17px;line-height:1.5}
+.container{max-width:1180px;margin:-22px auto 35px;position:relative;z-index:2}
+.card{border:1px solid #d8eaf2;border-radius:22px;box-shadow:0 12px 35px rgba(14,67,92,.09);padding:25px}
+.card h2{font-size:21px;color:#07324a}.card h2:after{content:"";display:block;width:46px;height:3px;background:#16b8d4;border-radius:3px;margin-top:8px}
+.grid{gap:15px}
+input{border:1.5px solid #cfe2eb;border-radius:12px;background:#fbfdfe}
+input:focus{outline:3px solid rgba(22,184,212,.14);border-color:#16b8d4}
+button{border-radius:13px;background:linear-gradient(90deg,#0876b5,#12aec9);box-shadow:0 8px 18px rgba(8,118,181,.22)}
+.results{gap:13px}.result{background:#f7fbfd;border:1px solid #d8eaf2;border-radius:17px;position:relative;overflow:hidden}.result:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#16b8d4}.result span{color:#07324a}
+.diagram{height:330px;background:linear-gradient(#e8f9ff 0 58%,#43c2e5 58%);border-radius:20px;box-shadow:inset 0 0 0 1px rgba(7,50,74,.06)}
+.mountain{background:#607d8b}.reservoir{background:#087fc1}.pipe{background:#455a64}.turbine{background:#f59e0b;box-shadow:0 8px 20px rgba(245,158,11,.25)}.generator{background:#17324a;box-shadow:0 8px 20px rgba(23,50,74,.2)}
+.label-diagram{border:1px solid #d8eaf2;color:#17324a}
+.info{background:#eef8fc;border-left-color:#16b8d4;border-radius:14px}
+.formula{background:#092a3d;color:#d8f8ff;border-radius:14px}
+canvas{background:#fbfdfe;border:1px solid #d8eaf2}
+@media(max-width:800px){.diagram{height:280px}.pipe{width:300px}.turbine{right:185px}.generator{right:35px}}
+
+.hero-badge{display:inline-block;padding:8px 14px;border:1px solid rgba(255,255,255,.35);border-radius:999px;background:rgba(255,255,255,.1);font-size:12px;font-weight:800;letter-spacing:.8px;margin-bottom:12px}.audio-btn{width:auto;margin:18px auto 0;padding:11px 18px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.45);box-shadow:none;font-size:14px}.intro-text{color:#547083;line-height:1.6;margin:-8px 0 14px}.diagram{position:relative}.sun{position:absolute;right:30px;top:22px;font-size:42px}.water-flow{position:absolute;left:50px;bottom:92px;color:#e8fbff;font-size:24px;letter-spacing:3px;animation:flow 1.2s linear infinite}.turbine{font-size:28px;flex-direction:column;line-height:1}.turbine small,.generator small{font-size:10px;margin-top:5px}.house{position:absolute;right:8px;bottom:80px;font-size:48px}.l5{right:8px;top:155px}.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:15px}.steps div{display:flex;align-items:center;gap:8px;padding:12px;border-radius:14px;background:#f3fafc;border:1px solid #d8eaf2}.steps b{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#0b8fb0;color:white}.steps span{font-size:13px;font-weight:700;color:#24495e}.reto{display:flex;gap:18px;align-items:flex-start;background:linear-gradient(135deg,#eefaff,#f8fcff);padding:22px;border-radius:18px;border:1px solid #d7edf5}.reto-icon{font-size:45px}.reto h3{color:#07324a;margin-bottom:8px}.reto p{line-height:1.7;color:#486579}.secondary-btn{width:auto;padding:11px 18px;font-size:14px;margin-top:14px;background:#07324a;box-shadow:none}@keyframes flow{from{transform:translateX(-10px);opacity:.5}to{transform:translateX(20px);opacity:1}}@media(max-width:700px){.steps{grid-template-columns:1fr 1fr}.steps div:last-child{grid-column:span 2}.reto{flex-direction:column}}
+
+/* --- Módulo de notas y envío por correo --- */
+.note-form{display:grid;gap:14px}
+.note-form textarea{width:100%;min-height:150px;resize:vertical;padding:14px;border:1.5px solid #cfe2eb;border-radius:12px;background:#fbfdfe;font:16px Arial,Helvetica,sans-serif;color:#17324a}
+.note-form textarea:focus{outline:3px solid rgba(22,184,212,.14);border-color:#16b8d4}
+.note-meta{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.note-meta input{margin:0}
+.note-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.note-actions button{margin-top:0}
+.note-send{background:linear-gradient(90deg,#0876b5,#12aec9)}
+.note-clear{background:#07324a}
+.note-help{font-size:13px;color:#547083;line-height:1.5}
+.note-status{padding:13px;border-radius:12px;font-weight:700;display:none}
+.note-status.show{display:block}
+.note-status.ok{background:#dcfce7;color:#166534}
+.note-status.err{background:#fee2e2;color:#991b1b}
+@media(max-width:700px){.note-meta,.note-actions{grid-template-columns:1fr}}
+
+</style>
+</head>
+<body>
+<header><div class="hero-badge">⚡ PROYECTO DE CIERRE · INGENIERÍA EN ENERGÍA</div><h1>💧 Microgeneración Hidroeléctrica</h1><p>Simulador interactivo para analizar caudal, altura, pérdidas, eficiencia, potencia y energía.</p><button class="audio-btn" onclick="hablarIntro()">🔊 Escuchar explicación</button></header>
+<div class="container">
+<section class="card">
+<h2>⚙️ 1. Configura la microcentral</h2>
+<div class="grid">
+<div><label>Caudal Q (m³/s)</label><input type="number" id="caudal" value="0.15" min="0" step="0.01"></div>
+<div><label>Altura bruta Hb (m)</label><input type="number" id="altura" value="25" min="0" step="0.1"></div>
+<div><label>Pérdidas hidráulicas (%)</label><input type="number" id="perdidas" value="10" min="0" max="90" step="1"></div>
+<div><label>Eficiencia global (%)</label><input type="number" id="eficiencia" value="75" min="0" max="100" step="1"></div>
+<div><label>Potencia de la carga (kW)</label><input type="number" id="carga" value="10" min="0" step="0.1"></div>
+<div><label>Horas de operación por día</label><input type="number" id="horas" value="8" min="0" max="24" step="0.5"></div>
+</div>
+<button onclick="calcular()">⚡ Calcular microcentral</button><div id="mensaje"></div>
+</section>
+
+<section class="card"><h2>🌊 2. ¿Cómo funciona?</h2><p class="intro-text">Explora visualmente el recorrido de la energía del agua hasta convertirse en electricidad.</p>
+<div class="diagram"><div class="sun">☀️</div><div class="mountain"></div><div class="reservoir"></div><div class="water-flow">≈≈≈≈≈≈≈≈≈≈≈≈≈</div><div class="pipe"></div>
+<div class="turbine">⚙️<small>TURBINA</small></div><div class="generator">⚡<small>GENERADOR</small></div><div class="power-line"></div>
+<div class="house">🏠</div><div class="label-diagram l1">💧 Embalse</div><div class="label-diagram l2">🔧 Tubería forzada</div>
+<div class="label-diagram l3">⚙️ Turbina</div><div class="label-diagram l4">⚡ Generador</div><div class="label-diagram l5">🏠 Carga</div></div>
+<div class="steps"><div><b>1</b><span>Agua</span></div><div><b>2</b><span>Presión</span></div><div><b>3</b><span>Turbina</span></div><div><b>4</b><span>Generación</span></div><div><b>5</b><span>Consumo</span></div></div></section>
+
+<section class="card"><h2>📊 3. Resultados</h2>
+<div class="results">
+<div class="result"><strong>Altura neta</strong><span id="alturaNeta">--</span></div>
+<div class="result"><strong>Potencia hidráulica</strong><span id="potHidraulica">--</span></div>
+<div class="result"><strong>Potencia eléctrica</strong><span id="potElectrica">--</span></div>
+<div class="result"><strong>Energía diaria</strong><span id="energiaDia">--</span></div>
+<div class="result"><strong>Energía mensual</strong><span id="energiaMes">--</span></div>
+<div class="result"><strong>Margen frente a carga</strong><span id="margen">--</span></div>
+</div></section>
+
+<section class="card"><h2>📈 4. Relación entre caudal y potencia</h2><p class="intro-text">La curva permite observar cómo cambia la potencia eléctrica cuando aumenta el caudal, manteniendo los demás parámetros constantes.</p><canvas id="graficaPotencia" width="900" height="380"></canvas></section>
+<section class="card"><h2>📊 5. Análisis de sensibilidad</h2><p class="intro-text">Compara el efecto de la altura neta sobre la potencia disponible.</p><canvas id="graficaAltura" width="900" height="380"></canvas></section>
+<section class="card"><h2>⚡ 6. ¿Puede alimentar la carga?</h2><div id="comparacion" class="info">Ingrese los datos y presione calcular.</div></section>
+<section class="card"><h2>💡 7. Recomendaciones</h2><div id="recomendaciones" class="info">Las recomendaciones aparecerán después del cálculo.</div></section>
+
+<section class="card"><h2>📚 8. ¿Qué pérdidas incluye la altura neta?</h2>
+<div class="info"><p>La <strong>altura neta (Hn)</strong> representa la energía disponible para la turbina después de descontar las pérdidas hidráulicas del sistema.</p>
+<div class="formula">Hn = Hb − hf</div>
+<p>Las pérdidas hidráulicas pueden incluir:</p><br><ul>
+<li>🔹 Pérdidas por fricción en la tubería.</li><li>🔹 Pérdidas en codos y curvas.</li><li>🔹 Pérdidas en válvulas.</li><li>🔹 Pérdidas en entradas y salidas.</li><li>🔹 Pérdidas en rejillas o filtros.</li><li>🔹 Otras pérdidas locales del sistema hidráulico.</li>
+</ul><br><p>En este simulador se representan mediante un porcentaje de la <strong>altura bruta</strong>.</p></div></section>
+
+<section class="card"><h2>🧮 9. Fundamento físico</h2>
+<div class="formula">Ph = ρ · g · Q · Hn</div><div class="formula">Pe = ρ · g · Q · Hn · η</div>
+<div class="info"><p><strong>ρ</strong> = densidad del agua ≈ 1000 kg/m³</p><p><strong>g</strong> = aceleración gravitacional ≈ 9,81 m/s²</p><p><strong>Q</strong> = caudal en m³/s</p><p><strong>Hn</strong> = altura neta en metros</p><p><strong>η</strong> = eficiencia global</p></div></section>
+<section class="card"><h2>🎓 10. Reto final</h2><div class="reto"><div class="reto-icon">🧠</div><div><h3>¿Qué parámetro conviene mejorar?</h3><p>Prueba diferentes valores de <strong>caudal, altura, pérdidas y eficiencia</strong>. Observa los cambios en potencia y energía y explica qué variable tiene mayor impacto en tu escenario.</p><button class="secondary-btn" onclick="hablarReto()">🔊 Escuchar reto</button></div></div></section>
+</div>
+
+<section class="card" id="notas">
+  <h2>📝 11. Toma una nota y envíala por correo</h2>
+  <p class="intro-text">Escribe una observación, conclusión o comentario sobre la simulación. La nota se enviará a <strong>girnu92@gmail.com</strong>.</p>
+
+  <form class="note-form" action="https://formsubmit.co/girnu92@gmail.com" method="POST" onsubmit="prepararNota(event)">
+    <input type="hidden" name="_subject" value="Nota - Simulador de Microgeneración Hidroeléctrica">
+    <input type="hidden" name="_template" value="table">
+    <input type="hidden" name="_captcha" value="false">
+    <input type="hidden" name="_next" value="">
+    <div class="note-meta">
+      <div>
+        <label for="nombreNota">Nombre</label>
+        <input type="text" id="nombreNota" name="nombre" placeholder="Escribe tu nombre" required>
+      </div>
+      <div>
+        <label for="correoNota">Tu correo (opcional)</label>
+        <input type="email" id="correoNota" name="correo" placeholder="ejemplo@correo.com">
+      </div>
+    </div>
+    <div>
+      <label for="textoNota">Tu nota</label>
+      <textarea id="textoNota" name="nota" placeholder="Escribe aquí tu nota, conclusión o comentario..." required></textarea>
+    </div>
+    <div class="note-actions">
+      <button type="submit" class="note-send">📧 Enviar nota al correo</button>
+      <button type="button" class="note-clear" onclick="limpiarNota()">🗑️ Limpiar</button>
+    </div>
+    <div class="note-help">Al pulsar “Enviar nota”, se abrirá el proceso de envío del servicio de formularios. La primera vez, FormSubmit puede solicitar una confirmación del correo receptor.</div>
+    <div id="notaStatus" class="note-status" role="status"></div>
+  </form>
+</section>
+
+<footer>Microgeneración Hidroeléctrica · Aplicación didáctica · Proyecto de cierre de semestre · Ingeniería en Energía</footer>
+
+<script>
+
+function hablar(texto){if(!('speechSynthesis' in window)){alert('Tu navegador no permite audio de voz.');return}window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(texto);u.lang='es-CO';u.rate=.95;window.speechSynthesis.speak(u)}
+function hablarIntro(){hablar('Este simulador representa una microcentral hidroeléctrica. El caudal y la altura neta determinan la energía hidráulica disponible. Las pérdidas reducen la altura útil y la eficiencia transforma parte de esa energía en potencia eléctrica. Cambia los parámetros y observa los resultados.');}
+function hablarReto(){hablar('Reto final. Prueba diferentes valores de caudal, altura, pérdidas y eficiencia. Observa cómo cambian la potencia y la energía. Luego explica qué parámetro produce el mayor efecto en tu escenario.');}
+function dibujarGraficaAltura(Q,Hb,perdida,eficiencia){
+const c=document.getElementById('graficaAltura'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);const rho=1000,g=9.81,eta=eficiencia/100,maxH=Math.max(Hb*1.5,10),maxP=rho*g*Q*maxH*eta/1000*1.12,ml=70,mb=55,w=c.width-100,h=c.height-90;ctx.beginPath();ctx.moveTo(ml,20);ctx.lineTo(ml,c.height-mb);ctx.lineTo(c.width-20,c.height-mb);ctx.strokeStyle='#64748b';ctx.stroke();ctx.beginPath();for(let i=0;i<=20;i++){let H=maxH*i/20,p=rho*g*Q*H*eta/1000,x=ml+(H/maxH)*w,y=c.height-mb-(p/maxP)*h;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.strokeStyle='#0b8fb0';ctx.lineWidth=4;ctx.stroke();ctx.fillStyle='#17324a';ctx.font='16px Arial';ctx.fillText('Altura neta (m)',c.width/2-65,c.height-15);ctx.save();ctx.translate(18,c.height/2+50);ctx.rotate(-Math.PI/2);ctx.fillText('Potencia eléctrica (kW)',0,0);ctx.restore();const Hactual=Hb*(1-perdida/100),pactual=rho*g*Q*Hactual*eta/1000,x=ml+(Hactual/maxH)*w,y=c.height-mb-(pactual/maxP)*h;ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fillStyle='#f59e0b';ctx.fill();ctx.fillStyle='#17324a';ctx.fillText('Punto actual',x-42,y-14)}
+
+function prepararNota(e){
+  const nombre=document.getElementById('nombreNota').value.trim();
+  const nota=document.getElementById('textoNota').value.trim();
+  const status=document.getElementById('notaStatus');
+  if(!nombre || !nota){
+    e.preventDefault();
+    status.className='note-status show err';
+    status.textContent='⚠️ Escribe tu nombre y tu nota antes de enviarla.';
+    return;
+  }
+  status.className='note-status show ok';
+  status.textContent='📨 Preparando el envío de tu nota...';
+}
+
+function limpiarNota(){
+  document.getElementById('nombreNota').value='';
+  document.getElementById('correoNota').value='';
+  document.getElementById('textoNota').value='';
+  const status=document.getElementById('notaStatus');
+  status.className='note-status';
+  status.textContent='';
+}
+
+function calcular(){
+const rho=1000,g=9.81;
+const Q=parseFloat(document.getElementById("caudal").value);
+const Hb=parseFloat(document.getElementById("altura").value);
+const perdida=parseFloat(document.getElementById("perdidas").value);
+const eficiencia=parseFloat(document.getElementById("eficiencia").value);
+const carga=parseFloat(document.getElementById("carga").value);
+const horas=parseFloat(document.getElementById("horas").value);
+const mensaje=document.getElementById("mensaje");
+if([Q,Hb,perdida,eficiencia,carga,horas].some(isNaN)){mensaje.innerHTML='<div class="status bad">⚠️ Complete todos los campos.</div>';return}
+if(Q<=0){mensaje.innerHTML='<div class="status bad">❌ El caudal debe ser mayor que 0.</div>';return}
+if(Hb<=0){mensaje.innerHTML='<div class="status bad">❌ La altura bruta debe ser mayor que 0.</div>';return}
+if(eficiencia<=0||eficiencia>100){mensaje.innerHTML='<div class="status bad">❌ La eficiencia debe estar entre 0 y 100%.</div>';return}
+if(perdida<0||perdida>=100){mensaje.innerHTML='<div class="status bad">❌ Las pérdidas deben estar entre 0 y 99%.</div>';return}
+if(horas<0||horas>24){mensaje.innerHTML='<div class="status bad">❌ Las horas deben estar entre 0 y 24.</div>';return}
+const hf=Hb*perdida/100,Hn=Hb-hf,Ph=rho*g*Q*Hn,Pe=Ph*(eficiencia/100);
+const energiaDia=Pe/1000*horas,energiaMes=energiaDia*30,potenciaKW=Pe/1000,margen=potenciaKW-carga;
+document.getElementById("alturaNeta").innerText=Hn.toFixed(2)+" m";
+document.getElementById("potHidraulica").innerText=(Ph/1000).toFixed(2)+" kW";
+document.getElementById("potElectrica").innerText=potenciaKW.toFixed(2)+" kW";
+document.getElementById("energiaDia").innerText=energiaDia.toFixed(2)+" kWh";
+document.getElementById("energiaMes").innerText=energiaMes.toFixed(2)+" kWh";
+document.getElementById("margen").innerText=margen.toFixed(2)+" kW";
+const comp=document.getElementById("comparacion");
+if(potenciaKW>=carga){comp.className="status good";comp.innerHTML="✅ <strong>La potencia disponible supera o iguala la carga.</strong><br><br>Potencia generada: "+potenciaKW.toFixed(2)+" kW<br>Carga: "+carga.toFixed(2)+" kW<br>Margen: "+margen.toFixed(2)+" kW"}
+else{comp.className="status warning";comp.innerHTML="⚠️ <strong>La potencia generada es inferior a la carga.</strong><br><br>Potencia generada: "+potenciaKW.toFixed(2)+" kW<br>Carga: "+carga.toFixed(2)+" kW<br>Déficit: "+Math.abs(margen).toFixed(2)+" kW"}
+let r="";
+if(eficiencia<60)r+="🔧 Se recomienda revisar la eficiencia de la turbina y del generador.<br><br>";
+if(perdida>20)r+="💧 Las pérdidas hidráulicas son elevadas. Conviene revisar diámetro, longitud y accesorios de la tubería.<br><br>";
+if(Hn<5)r+="📏 La altura neta es baja. Puede ser necesario estudiar otra configuración de turbina.<br><br>";
+if(potenciaKW<carga)r+="⚡ La potencia disponible no cubre la carga ingresada. Se puede estudiar aumentar el caudal, la altura neta o reducir la demanda.<br><br>";
+if(r==="")r="✅ Los parámetros ingresados presentan condiciones favorables para la simulación.<br><br>💡 Se recomienda analizar diferentes caudales y alturas para estudiar cómo cambia la potencia disponible.";
+document.getElementById("recomendaciones").innerHTML=r;
+dibujarGrafica(Q,Hb,perdida,eficiencia);dibujarGraficaAltura(Q,Hb,perdida,eficiencia);
+}
+function dibujarGrafica(Qactual,Hb,perdida,eficiencia){
+const canvas=document.getElementById("graficaPotencia"),ctx=canvas.getContext("2d");
+ctx.clearRect(0,0,canvas.width,canvas.height);
+const rho=1000,g=9.81,Hn=Hb*(1-perdida/100),eta=eficiencia/100,maxQ=Math.max(Qactual*2,.5);
+let puntos=[];
+for(let i=0;i<=20;i++){let q=maxQ*i/20;puntos.push({q:q,p:rho*g*q*Hn*eta/1000})}
+const ml=70,mb=55,ancho=canvas.width-100,alto=canvas.height-90,maxP=puntos[puntos.length-1].p*1.1;
+ctx.beginPath();ctx.moveTo(ml,20);ctx.lineTo(ml,canvas.height-mb);ctx.lineTo(canvas.width-20,canvas.height-mb);ctx.stroke();
+ctx.beginPath();
+puntos.forEach((p,i)=>{const x=ml+(p.q/maxQ)*ancho,y=canvas.height-mb-(p.p/maxP)*alto;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});
+ctx.strokeStyle="#0284c7";ctx.lineWidth=4;ctx.stroke();
+const potenciaActual=rho*g*Qactual*Hn*eta/1000,xActual=ml+(Qactual/maxQ)*ancho,yActual=canvas.height-mb-(potenciaActual/maxP)*alto;
+ctx.beginPath();ctx.arc(xActual,yActual,7,0,Math.PI*2);ctx.fillStyle="#dc2626";ctx.fill();
+ctx.fillStyle="#17202a";ctx.font="16px Arial";ctx.fillText("Caudal Q (m³/s)",canvas.width/2-70,canvas.height-15);
+ctx.save();ctx.translate(18,canvas.height/2+50);ctx.rotate(-Math.PI/2);ctx.fillText("Potencia eléctrica (kW)",0,0);ctx.restore();
+ctx.fillText("Punto de operación",xActual-55,yActual-15);
+}
+calcular();
+</script>
+</body>
+</html>
